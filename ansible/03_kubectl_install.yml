@@ -1,0 +1,57 @@
+- hosts: "jenkins_server"
+  tasks: 
+  - name: YC utility install script download
+    become: yes
+    get_url:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+
+  - name: REPO
+    shell:
+      cmd: |
+        echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+  - name: Install kubectl package
+    become: yes
+    apt:
+      pkg:
+        - kubectl
+      state: latest
+      update_cache: true
+
+  - name: Create dir for yandex-cloud
+    become: yes
+    file:
+      path: "/var/lib/jenkins/.config/yandex-cloud/"
+      state: directory
+
+  - name: Copy yandex-cloud config
+    become: yes
+    copy:
+      remote_src: yes
+      src: "/home/{{ ansible_user }}/.config/yandex-cloud/config.yaml"
+      dest: /var/lib/jenkins/.config/yandex-cloud/config.yaml
+      mode: '0444'
+
+  - name: Set kubernetes cluster settings into .kube/config
+    become_user: "{{ ansible_user }}"
+    shell: 
+      cmd: |
+        export PATH="$PATH:/home/$USER/yandex-cloud/bin"
+        yc managed-kubernetes cluster get-credentials netology-kuber --external --force
+
+  - name: Create dir for kubernetes config
+    become: yes
+    file:
+      path: "/var/lib/jenkins/.config/kubernetes/"
+      state: directory
+      mode: "0755"
+    register: kuber_config_dir
+  
+  - name: Copy kubernetes cluster config
+    become: yes
+    copy:
+      remote_src: yes
+      src: "/home/{{ ansible_user }}/.kube/config"
+      dest: "{{ kuber_config_dir.path }}/config"
+      mode: '0444'

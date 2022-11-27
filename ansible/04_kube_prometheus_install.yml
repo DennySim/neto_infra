@@ -1,0 +1,48 @@
+- hosts: "localhost"
+  tasks: 
+  - name: Create a directory if it does not exist
+    ansible.builtin.file:
+      path: ~/kube-prometheus
+      state: directory
+      mode: '0755'
+        
+  - name: kube_prometheus download
+    get_url:
+      url: https://github.com/prometheus-operator/kube-prometheus/archive/refs/tags/v0.10.0.zip
+      dest: ~/kube-prometheus/v0.10.0.zip
+
+  - name: UNZIPPING the files
+    unarchive:
+      src: ~/kube-prometheus/v0.10.0.zip
+      dest: ~/kube-prometheus/
+      copy: no    
+
+  - name: Set credentials to access kubernetes cluster
+    shell: 
+      cmd: |
+        export PATH="$PATH:/home/$USER/yandex-cloud/bin"
+        yc managed-kubernetes cluster get-credentials netology-kuber --external --force
+
+  - name: Set service with type LoadBalancer
+    blockinfile:
+      dest: "~/kube-prometheus/kube-prometheus-0.10.0/manifests/grafana-service.yaml"
+      insertafter: '^app.kubernetes.io/part-of: kube-prometheus'
+      block: |2
+          type: LoadBalancer
+
+  - name: Install  kube-prometheus
+    shell:
+      cmd: |
+        kubectl apply --server-side -f ~/kube-prometheus/kube-prometheus-0.10.0/manifests/setup
+        until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done
+        kubectl apply -f ~/kube-prometheus/kube-prometheus-0.10.0/manifests/
+
+  - name: Get grafana ip address
+    shell:
+      cmd: |
+        kubectl get svc -n monitoring | grep grafana | awk '{print $4}'
+    register: grafana_ip_address
+
+  - name: Print grafana ip address
+    debug:
+      msg: "{{ grafana_ip_address.stdout }}"

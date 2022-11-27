@@ -1,0 +1,42 @@
+---
+- hosts: "jenkins_server"
+  tasks: 
+  - name: YC utility install script download
+    get_url:
+      url: https://storage.yandexcloud.net/yandexcloud-yc/install.sh
+      dest: ~/install.sh
+      mode: '555'
+
+  - name: YC utility install
+    shell:
+      cmd: |
+        ./install.sh -ar
+        export PATH="$PATH:/home/$USER/yandex-cloud/bin"
+        yc config profile create jenkins
+        yc config set folder-id "{{ folder_id }}"
+
+  - name: Create key_diplom.json
+    shell:
+      cmd: yc iam key create --service-account-name diplom -o key_diplom.json
+    delegate_to: 127.0.0.1
+
+  - name: Create dir for yandex config
+    become: yes
+    file:
+      path: "/var/lib/jenkins/.config/yandex-cloud/"
+      state: directory
+      mode: "0755"
+    register: yandex_config_dir
+
+  - name: Copy key_diplom.json
+    become: yes
+    copy:
+      src: key_diplom.json
+      dest: "{{ yandex_config_dir.path }}/key_diplom.json"
+      mode: '0444'
+
+  - name: Set profile with key_diplom.json
+    shell:
+      cmd: |
+        export PATH="$PATH:/home/$USER/yandex-cloud/bin"
+        yc config set service-account-key "{{ yandex_config_dir.path }}/key_diplom.json"

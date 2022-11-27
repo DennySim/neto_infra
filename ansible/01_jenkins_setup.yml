@@ -1,0 +1,218 @@
+---
+- hosts: "jenkins_server"
+  vars:
+    jenkins_user: admin
+    newTokenName: diplom
+    pipelineName: diplom
+    pipelineXmlFile: ../terraform/config.xml
+
+  tasks:  
+
+  - name: Wait for port 80 to become open on the Jenkins host, don't start checking for 30 seconds
+    wait_for:
+      host: "{{ ansible_host }}"
+      port: 80
+      delay: 30
+      sleep: 15
+      timeout: 600
+
+  - name: Jenkins skip startUp wizard and crumb settings
+    become: yes
+    lineinfile:
+      dest=/etc/systemd/system/multi-user.target.wants/jenkins.service
+      regexp='^Environment="JAVA_OPTS=-Djava.awt.headless=true'
+      line='Environment="JAVA_OPTS=-Djava.awt.headless=true -Djenkins.install.runSetupWizard=false -Dhudson.security.csrf.DefaultCrumbIssuer.EXCLUDE_SESSION_ID=true"'
+
+  - name: Restart jenkins
+    become: yes
+    ansible.builtin.systemd:
+      name: jenkins
+      state: restarted
+      daemon_reload: yes
+
+  - name: Read jenkins admin pwd
+    become: yes
+    shell: cat /var/lib/jenkins/secrets/initialAdminPassword
+    register: adminpwd
+
+  - name: Install Jenkins recommended plugin
+    become: yes
+    jenkins_plugin:
+      name: "{{ item }}"
+      state: latest
+      url_username: "{{ jenkins_user }}"
+      url_password: "{{ adminpwd.stdout }}"
+      with_dependencies: yes
+      timeout: 900 
+    with_items:
+      - branch-api
+      - build-timeout
+      - caffeine-api
+      - checks-api
+      - cloudbees-folder
+      - command-launcher
+      - credentials
+      - credentials-binding
+      - display-url-api
+      - docker-plugin
+      - docker-workflow
+      - docker pipeline
+      - docker commons
+      - docker api
+      - durable-task
+      - echarts-api
+      - font-awesome-api
+      - git
+      - git-client
+      - git-server
+      - github
+      - github-api
+      - github-branch-source
+      - github-pullrequest
+      - handlebars
+      - jaxb
+      - jdk-tool
+      - jjwt-api
+      - jquery3-api
+      - jsch
+      - junit
+      - pipeline
+      - pipeline-build-step
+      - pipeline-github-lib
+      - pipeline-graph-analysis
+      - pipeline-input-step
+      - pipeline-milestone-step
+      - pipeline-model-api
+      - pipeline-model-definition
+      - pipeline-model-extensions
+      - pipeline-rest-api
+      - pipeline-stage-step
+      - pipeline-stage-tags-metadata
+      - pipeline-stage-view
+      - plain-credentials
+      - plugin-util-api
+      - resource-disposer
+      - scm-api
+      - script-security
+      - snakeyaml-api
+      - ssh-credentials
+      - ssh-slaves
+      - sshd
+      - SSH Build Agents
+      - structs
+      - timestamper
+      - workflow-aggregator
+      - workflow-api
+      - workflow-basic-steps
+      - workflow-cps
+      - workflow-cps-global-lib
+      - workflow-durable-task-step
+      - workflow-job
+      - workflow-multibranch
+      - workflow-scm-step
+      - workflow-step-api
+      - workflow-support
+      - ws-cleanup
+
+  - name: Restart jenkins
+    become: yes
+    ansible.builtin.systemd:
+      name: jenkins
+      state: restarted
+      daemon_reload: yes  
+
+  - name: Get External Ip Address
+    command: curl http://ifconfig.net
+    register: address   
+   
+  - name: Get CRUMB
+    ansible.builtin.uri:
+      url: "http://{{ address.stdout }}/crumbIssuer/api/json"
+      method: GET
+      force_basic_auth: yes
+      user: "{{ jenkins_user }}"
+      password: "{{ adminpwd.stdout }}"
+      return_content: yes
+    register: crumb
+
+  - name: Generate api token
+    ansible.builtin.uri:
+      url: "http://{{ address.stdout }}/me/descriptorByName/jenkins.security.ApiTokenProperty/generateNewToken"
+      method: POST
+      force_basic_auth: yes
+      user: "{{ jenkins_user }}"
+      password: "{{ adminpwd.stdout }}"
+      return_content: yes
+      body: "newTokenName={{ newTokenName }}"
+      headers:
+        Jenkins-Crumb: "{{ crumb.json.crumb }}"
+    register: token
+
+  - name: Create pipeline
+    command:
+      argv:
+      - curl
+      - -X
+      - POST
+      - "http://{{ address.stdout }}/createItem?name={{ pipelineName }}"
+      - -u
+      - "{{ jenkins_user }}:{{ token.json.data.tokenValue }}"
+      - --data-binary
+      - "@{{ pipelineXmlFile }}"
+      - -H
+      - "Jenkins-Crumb:{{ crumb.json.crumb }}"
+      - -H
+      - Content-Type:text/xml
+    delegate_to: 127.0.0.1
+
+  - name: Start pipeline
+    command:
+      argv:
+      - curl
+      - -X
+      - POST
+      - "http://{{ address.stdout }}/job/{{ pipelineName }}/buildWithParameters"
+      - -u
+      - "{{ jenkins_user }}:{{ token.json.data.tokenValue }}"
+      - -H
+      - "Jenkins-Crumb:{{ crumb.json.crumb }}"
+    delegate_to: 127.0.0.1
+
+  - name: Install required system packages
+    become: yes
+    apt:
+      pkg:
+        - docker.io
+      state: latest
+      update_cache: true 
+
+  - name: adding user jenkins to docker group
+    become: yes
+    user:
+      name: jenkins
+      append: yes
+      groups: docker
+
+  - name: Restart jenkins
+    become: yes
+    ansible.builtin.systemd:
+      name: jenkins
+      state: restarted
+      daemon_reload: yes
+
+  - name: Print Jenkins server address
+    debug:
+      msg: "{{ address.stdout }}"     
+
+  - name: Print Jenkins server admin password
+    debug:
+      msg: "{{ adminpwd.stdout }}"    
+
+- name: Include a play YC utility install
+  import_playbook: 02_yc_utility_install.yml
+
+- name: Include a play KUBECTL install
+  import_playbook: 03_kubectl_install.yml
+
+- name: Include a play kube-prometheus install
+  import_playbook: 04_kube_prometheus_install.yml
