@@ -1,5 +1,3 @@
-YANDEX
-
 # About
 CI-CD infrastructure for build and deploy App onto Kubernetes
 
