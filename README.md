@@ -19,11 +19,12 @@ CI-CD infrastructure for build and deploy App onto Kubernetes
 
 # Installation
 
-1. create workspace prod and stage
-2. Clone https://github.com/DennySim/neto_infra.git
-3. cd ./neto_infra/terraform 
-4. copy key.json(for yandex access) and id_rsa.pub
-5. set variables like repo url and registry url in app_variables.tf
+
+1. Clone https://github.com/DennySim/neto_infra.git
+2. cd ./neto_infra/terraform 
+3. copy key.json(for yandex access) and id_rsa.pub
+4. set variables like repo url and registry url in app_variables.tf
+5. create workspace prod and stage
 6. terraform init
 7. terraform apply
 8. Being in your repository on github.com in the Setting/Webhooks section, add WEBHOOK
