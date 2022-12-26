@@ -7,6 +7,12 @@ resource "local_file" "inventory" {
         ansible_connection: ssh
         ansible_user: ubuntu
         folder_id: ${var.yandex_folder_id}
+        service_account: ${yandex_iam_service_account.diplom.name}
+        jenkins_user: admin
+        newTokenName: diplom
+        pipelineName: diplom
+        pipelineXmlFile: ../terraform/config.xml
+        cluster_id: ${yandex_kubernetes_cluster.netology_regional_cluster.id}
     jenkins_server:
       hosts:
         jenkins_server.netology.yc:
@@ -14,8 +20,4 @@ resource "local_file" "inventory" {
     DOC
     
   filename = "${path.module}/../ansible/inventory/prod/hosts.yml"
-
-  depends_on = [
-    yandex_compute_instance.jenkins_server,
-  ]
 }

@@ -1,10 +1,5 @@
 ---
 - hosts: "jenkins_server"
-  vars:
-    jenkins_user: admin
-    newTokenName: diplom
-    pipelineName: diplom
-    pipelineXmlFile: ../terraform/config.xml
 
   tasks:  
 
@@ -47,10 +42,10 @@
     with_items:
       - branch-api
       - build-timeout
-      - caffeine-api
-      - checks-api
       - cloudbees-folder
       - command-launcher
+      - config-file-provider
+      - pipeline-utility-steps
       - credentials
       - credentials-binding
       - display-url-api
@@ -60,8 +55,6 @@
       - docker commons
       - docker api
       - durable-task
-      - echarts-api
-      - font-awesome-api
       - git
       - git-client
       - git-server
@@ -69,13 +62,6 @@
       - github-api
       - github-branch-source
       - github-pullrequest
-      - handlebars
-      - jaxb
-      - jdk-tool
-      - jjwt-api
-      - jquery3-api
-      - jsch
-      - junit
       - pipeline
       - pipeline-build-step
       - pipeline-github-lib
@@ -94,7 +80,6 @@
       - resource-disposer
       - scm-api
       - script-security
-      - snakeyaml-api
       - ssh-credentials
       - ssh-slaves
       - sshd
@@ -148,7 +133,7 @@
         Jenkins-Crumb: "{{ crumb.json.crumb }}"
     register: token
 
-  - name: Create pipeline
+  - name: Put prepared pipeline into Jenkins
     command:
       argv:
       - curl
@@ -163,19 +148,6 @@
       - "Jenkins-Crumb:{{ crumb.json.crumb }}"
       - -H
       - Content-Type:text/xml
-    delegate_to: 127.0.0.1
-
-  - name: Start pipeline
-    command:
-      argv:
-      - curl
-      - -X
-      - POST
-      - "http://{{ address.stdout }}/job/{{ pipelineName }}/buildWithParameters"
-      - -u
-      - "{{ jenkins_user }}:{{ token.json.data.tokenValue }}"
-      - -H
-      - "Jenkins-Crumb:{{ crumb.json.crumb }}"
     delegate_to: 127.0.0.1
 
   - name: Install required system packages
@@ -206,7 +178,15 @@
 
   - name: Print Jenkins server admin password
     debug:
-      msg: "{{ adminpwd.stdout }}"    
+      msg: "{{ adminpwd.stdout }}"
+
+  - name: Set facts for next playbooks
+    set_fact:
+      jenkins_user: "{{ jenkins_user }}"
+      address: "{{ address.stdout }}"
+      token: "{{ token }}"
+      crumb: "{{ crumb }}"
+      pipelineName: "{{ pipelineName }}"
 
 - name: Include a play YC utility install
   import_playbook: 02_yc_utility_install.yml

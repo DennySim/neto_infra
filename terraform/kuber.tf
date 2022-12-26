@@ -58,6 +58,7 @@ resource "yandex_kubernetes_node_group" "netology-node-group" {
     resources {
       memory = 4
       cores  = 4
+      core_fraction=20
     }
 
     boot_disk {

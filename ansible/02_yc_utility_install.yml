@@ -1,42 +1,43 @@
 ---
 - hosts: "jenkins_server"
   tasks: 
-  - name: YC utility install script download
-    get_url:
-      url: https://storage.yandexcloud.net/yandexcloud-yc/install.sh
-      dest: ~/install.sh
-      mode: '555'
-
-  - name: YC utility install
+  - name: Create key_diplom.json
     shell:
       cmd: |
-        ./install.sh -ar
+        export PATH="$PATH:/home/$USER/yandex-cloud/bin"
+        yc iam key create --service-account-name "{{ service_account }}" -o "/home/$USER/.config/yandex-cloud/key_diplom.json"
+    delegate_to: 127.0.0.1
+     
+  - name: Set YC Jenkins profile and attach key_diplom.json to profile
+    shell:
+      cmd: |
         export PATH="$PATH:/home/$USER/yandex-cloud/bin"
         yc config profile create jenkins
         yc config set folder-id "{{ folder_id }}"
-
-  - name: Create key_diplom.json
-    shell:
-      cmd: yc iam key create --service-account-name diplom -o key_diplom.json
+        yc config set service-account-key "/home/$USER/.config/yandex-cloud/key_diplom.json"
     delegate_to: 127.0.0.1
 
-  - name: Create dir for yandex config
-    become: yes
-    file:
-      path: "/var/lib/jenkins/.config/yandex-cloud/"
-      state: directory
-      mode: "0755"
-    register: yandex_config_dir
-
-  - name: Copy key_diplom.json
-    become: yes
-    copy:
-      src: key_diplom.json
-      dest: "{{ yandex_config_dir.path }}/key_diplom.json"
-      mode: '0444'
-
-  - name: Set profile with key_diplom.json
-    shell:
-      cmd: |
-        export PATH="$PATH:/home/$USER/yandex-cloud/bin"
-        yc config set service-account-key "{{ yandex_config_dir.path }}/key_diplom.json"
+  - name: Attach YC config to Multibranch Pipeline
+    command:
+      argv:
+      - curl
+      - -X
+      - POST
+      - "http://{{ jenkins_user }}:{{ token.json.data.tokenValue }}@{{ address }}/job/{{ pipelineName }}/credentials/store/folder/domain/_/createCredentials"
+      - -F 
+      - "secret=@/home/$USER/.config/yandex-cloud/key_diplom.json"
+      - -F
+      - 'json={
+          "": "4",
+          "credentials": {
+            "scope": "GLOBAL",
+            "id": "keyjson",
+            "file": "secret",
+            "description": "keyjson",
+            "stapler-class": "org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl",
+            "$class": "org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl"
+          }
+        }'
+      - -H
+      - "Jenkins-Crumb:{{ crumb.json.crumb }}"
+    delegate_to: 127.0.0.1
