@@ -40,9 +40,9 @@ How to check pipeline work
 ###### Commit without tag - just push image to registry
 ![pipeline_log.PNG](images/pipeline_log.PNG)
 ###### Commit with tag(first time) - push image to registry, docker container deployment in kubernetes
-![pipeline_event.PNG](images/pipeline_log with_tag.PNG)
+![pipeline_log with_tag.PNG](images/pipeline_log with_tag.PNG)
 ###### Commit with tag(second time) - push image to registry, docker container redeployment in kubernetes 
-![pipeline_log.PNG](images/pipeline_log with_tag_redeployment.PNG)
+![pipeline_log with_tag_redeployment.PNG](images/pipeline_log with_tag_redeployment.PNG)
 
 
 
