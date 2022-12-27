@@ -15,6 +15,7 @@ resource "null_resource" "ansible_jenkins" {
 
   depends_on = [
     null_resource.wait,
-    yandex_kubernetes_node_group.netology-node-group
+    yandex_kubernetes_node_group.netology-node-group,
+    yandex_kubernetes_cluster.netology_regional_cluster
   ]
 }
