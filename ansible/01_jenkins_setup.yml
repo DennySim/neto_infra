@@ -40,6 +40,7 @@
       with_dependencies: yes
       timeout: 900 
     with_items:
+      - basic-branch-build-strategies
       - branch-api
       - build-timeout
       - cloudbees-folder
@@ -62,6 +63,7 @@
       - github-api
       - github-branch-source
       - github-pullrequest
+      - multibranch-build-strategy-extension
       - pipeline
       - pipeline-build-step
       - pipeline-github-lib

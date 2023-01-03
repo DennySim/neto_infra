@@ -43,6 +43,8 @@ How to check pipeline work
 ![pipeline_log_with_tag.PNG](images/pipeline_log_with_tag.PNG)
 ###### Commit with tag(second time) - push image to registry, docker container redeployment in kubernetes   
 ![pipeline_log_with_tag_redeployment.PNG](images/pipeline_log_with_tag_redeployment.PNG)
+###### WEB UI for APP and GRAFANA  
+![app_grafana.PNG](images/app_grafana.PNG)
 
 
 
